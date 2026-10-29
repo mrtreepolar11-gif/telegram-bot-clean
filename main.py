@@ -1,4 +1,7 @@
+import os
 import logging
+from aiohttp import web
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
@@ -9,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 ADMIN_ID = 745868523
 ADMIN_SUPPORT = "@nahidbro204"
 
-# In-memory database (For production, use SQLite/MongoDB)
+# In-memory database
 users_db = {}
 
 def get_user(user_id, referrer_id=None):
@@ -241,7 +244,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("আপনার অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই")
             return
         
-        # Deduct balance & process order
         user_data['balance'] -= total_cost
         user_data['pending_action'] = None
         
@@ -252,7 +254,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⏳ স্ট্যাটাস: **Pending (অ্যাডমিন শিঘ্রই ডেলিভারি দেবেন)**"
         )
         
-        # Notify Admin first
         admin_text = (
             f"🔔 **নতুন জিমেইল ক্রয়ের অর্ডার!**\n\n"
             f"👤 User ID: `{user_id}`\n"
@@ -331,7 +332,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         method = wd_data.get('method')
         amount = wd_data.get('amount')
         
-        # Deduct balance temporarily until processed/rejected
         user_data['balance'] -= amount
         user_data['pending_action'] = None
         user_data['withdraw_data'] = {}
@@ -353,8 +353,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
+async def handle_web(request):
+    return web.Response(text="Bot is running smoothly on Render!")
+
+async def web_server():
+    app = web.Application()
+    app.router.add_get("/", handle_web)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+
 def main():
-    # BOT TOKEN বসানো হয়েছে
     TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
     
     application = ApplicationBuilder().token(TOKEN).build()
@@ -364,6 +375,11 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
     print("Bot is running...")
+    
+    # Start web server for Render port binding
+    loop = asyncio.get_event_loop()
+    loop.create_task(web_server())
+    
     application.run_polling()
 
 if __name__ == '__main__':
