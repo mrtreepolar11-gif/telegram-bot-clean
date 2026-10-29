@@ -207,7 +207,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.message.edit_text(query.message.text + f"\n\n❌ **Rejected by Admin (Balance Refunded)**")
         try:
-            await context.bot.send_message(target_user_id, f"❌ আপনার উইথড্র রিকোয়েস্টটি বাতিল করা হয়েছে এবংকৃত {amount} BDT আপনার অ্যাকাউন্টে ফিরিয়ে দেওয়া হয়েছে।")
+            await context.bot.send_message(target_user_id, f"❌ আপনার উইথড্র রিকোয়েস্টটি বাতিল করা হয়েছে এবং {amount} BDT আপনার অ্যাকাউন্টে ফিরিয়ে দেওয়া হয়েছে।")
         except:
             pass
 
@@ -354,36 +354,25 @@ async def handle_web(request):
 def main():
     TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
     
-    # Build Telegram Application
     application = ApplicationBuilder().token(TOKEN).build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    # Setup aiohttp web server app
     app = web.Application()
     app.router.add_get("/", handle_web)
     
     port = int(os.environ.get("PORT", 8080))
-    runner = web.AppRunner(app)
     
-    async function_runner = None
-    
-    # Run both web server and telegram bot using standard synchronous polling runner
-    print("Starting Bot and Web Server...")
-    
-    # We will use web.run_app combined with bot polling inside a background thread or standard webhook/polling startup
-    # To keep it extremely simple and avoid exiting early on Render free tier:
     import threading
-    
     def run_web():
         web.run_app(app, host="0.0.0.0", port=port, print=None)
         
     web_thread = threading.Thread(target=run_web, daemon=True)
     web_thread.start()
     
-    # Start polling for telegram bot
+    print("Starting Bot and Web Server...")
     application.run_polling()
 
 if __name__ == '__main__':
