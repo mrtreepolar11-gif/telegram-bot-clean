@@ -1,4 +1,6 @@
 import logging
+from flask import Flask
+import threading
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -18,6 +20,18 @@ USER_BALANCES = {}
 PENDING_TRANSACTIONS = {}
 ADMIN_ID = 745868523
 
+# ফ্লাস্কের একটি ছোট ডামি সার্ভার, যাতে রেন্ডার একে ২৪/৭ লাইভ রাখে
+web_app = Flask(__name__)
+
+
+@web_app.route("/")
+def home():
+    return "Bot is running 24/7 successfully!"
+
+
+def run_flask():
+    web_app.run(host="0.0.0.0", port=10000)
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -34,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "স্বাগতম! Digital Service Shop-এ আপনাকে স্বাগতম।\nনিচের মেনু থেকে একটি অপশন বেছে নিন:",
+        "স্বাগতম! Digital Service Shop-এ আপনাকে স্বাগতম።\nনিচের মেনু থেকে একটি অপশন বেছে নিন:",
         reply_markup=reply_markup,
     )
 
@@ -322,6 +336,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
+    # ব্যাকগ্রাউন্ডে ফ্লাস্ক সার্ভার চালু করা যাতে রেন্ডার একে লাইভ রাখে
+    t = threading.Thread(target=run_flask)
+    t.start()
+
     app = (
         ApplicationBuilder()
         .token("9202301606:AAHwht3TKt7fzvtmnR3vrF9rk04zoW5Haj4")
