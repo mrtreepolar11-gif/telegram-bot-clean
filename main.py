@@ -5,8 +5,8 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 # Logging setup
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# Admin ID & Support
-ADMIN_ID = 745868523
+# Admin ID & Support (Updated)
+ADMIN_ID = 7458685213
 ADMIN_SUPPORT = "@nahidbro204"
 
 # In-memory database
