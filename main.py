@@ -1,7 +1,4 @@
-import os
 import logging
-from aiohttp import web
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
@@ -204,7 +201,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user_id = int(data.split("_")[3])
         amount = float(data.split("_")[4])
         target_user = get_user(target_user_id)
-        target_user['balance'] += amount  # Refund balance
+        target_user['balance'] += amount  
         
         await query.message.edit_text(query.message.text + f"\n\n❌ **Rejected by Admin (Balance Refunded)**")
         try:
@@ -231,7 +228,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not action:
         return
 
-    # 1. Gmail Buy Logic
     if action == 'buy_gmail':
         if not text.isdigit():
             await update.message.reply_text("❌ দয়া করে সঠিক সংখ্যা লিখুন।")
@@ -263,7 +259,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await context.bot.send_message(ADMIN_ID, admin_text, parse_mode="Markdown")
 
-    # 2. Gmail Sell Logic
     elif action.startswith('sell_details_'):
         cat_id = action.split("_")[2]
         user_data['pending_action'] = None
@@ -279,7 +274,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[InlineKeyboardButton("✅ Approve & Pay", callback_data=f"admin_approve_sell_{user_id}")]]
         await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-    # 3. Deposit Logic
     elif action == 'deposit_amount':
         if not text.replace('.', '', 1).isdigit():
             await update.message.reply_text("❌ দয়া করে সঠিক টাকার পরিমাণ লিখুন।")
@@ -302,7 +296,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[InlineKeyboardButton("✅ Approve Deposit", callback_data=f"admin_approve_dep_{user_id}_{amount}")]]
         await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-    # 4. Withdraw Amount Logic
     elif action == 'withdraw_amount':
         if not text.replace('.', '', 1).isdigit():
             await update.message.reply_text("❌ দয়া করে সঠিক টাকার পরিমাণ লিখুন।")
@@ -325,7 +318,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ _সতর্কবার্তা: অবশ্যই সঠিক নম্বর ইনপুট করুন। ভুল নম্বরে পেমেন্ট চলে গেলে কর্তৃপক্ষ দায়ী থাকবে না।_"
         )
 
-    # 5. Withdraw Number & Final Submission
     elif action == 'withdraw_number':
         number = text
         wd_data = user_data['withdraw_data']
@@ -353,18 +345,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-async def handle_web(request):
-    return web.Response(text="Bot is running smoothly on Render!")
-
-async def web_server():
-    app = web.Application()
-    app.router.add_get("/", handle_web)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-
 def main():
     TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
     
@@ -375,11 +355,6 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
     print("Bot is running...")
-    
-    # Start web server for Render port binding
-    loop = asyncio.get_event_loop()
-    loop.create_task(web_server())
-    
     application.run_polling()
 
 if __name__ == '__main__':
