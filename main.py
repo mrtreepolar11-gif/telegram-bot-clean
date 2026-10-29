@@ -342,7 +342,7 @@ def main():
 
     app = (
         ApplicationBuilder()
-        .token("9202301606:AAHwht3TKt7fzvtmnR3vrF9rk04zoW5Haj4")
+        .token("9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q")
         .build()
     )
 
