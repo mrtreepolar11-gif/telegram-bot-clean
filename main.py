@@ -269,3 +269,167 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data['pending_action'] = None
         
         await update.message.reply_text(
+            f"✅ আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে!\n"
+            f"🛒 পরিমাণ: {quantity}টি জিমেইল\n"
+            f"💵 মোট খরচ: {total_cost} BDT\n"
+            f"⏳ স্ট্যাটাস: **Pending (অ্যাডমিন শিঘ্রই ডেলিভারি দেবেন)**"
+        )
+        
+        admin_text = (
+            f"🔔 **নতুন জিমেইল ক্রয়ের অর্ডার!**\n\n"
+            f"👤 User ID: `{user_id}`\n"
+            f"👤 Username: @{user.username if user.username else 'N/A'}\n"
+            f"📦 Quantity: {quantity} Pcs\n"
+            f"💵 Total Cost: {total_cost} BDT"
+        )
+        await context.bot.send_message(ADMIN_ID, admin_text, parse_mode="Markdown")
+
+    elif action == 'deposit_amount':
+        if not text.replace('.', '', 1).isdigit():
+            await update.message.reply_text("❌ দয়া করে সঠিক টাকার পরিমাণ লিখুন।")
+            return
+        
+        amount = float(text)
+        if amount < 60:
+            await update.message.reply_text("❌ সর্বনিম্ন ডিপোজিট ৬০ টাকা।")
+            return
+            
+        user_data['deposit_data']['amount'] = amount
+        user_data['pending_action'] = 'deposit_trxid'
+        
+        await update.message.reply_text("📝 **এখন আপনার bKash/Nagad ট্রানজেকশন আইডি (TrxID) বা বিবরণ লিখে পাঠান:**")
+
+    elif action == 'deposit_trxid':
+        trx_info = text
+        amount = user_data['deposit_data'].get('amount', 0)
+        user_data['pending_action'] = None
+        user_data['deposit_data'] = {}
+        
+        await update.message.reply_text("✅ আপনার ডিপোজিট রিকোয়েস্ট এবং TrxID অ্যাডমিনের কাছে পাঠানো হয়েছে। অনুগ্রহ করে অনুমোদনের অপেক্ষা করুন।")
+        
+        admin_text = (
+            f"🔔 **নতুন ডিপোজিট রিকোয়েস্ট!**\n\n"
+            f"👤 User ID: `{user_id}`\n"
+            f"💰 Amount: {amount} BDT\n"
+            f"📝 TrxID / Info: `{trx_info}`\n"
+            f"📌 Status: 🟡 Pending"
+        )
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_dep_{user_id}_{amount}"),
+                InlineKeyboardButton("❌ Cancel", callback_data=f"admin_cancel_dep_{user_id}_{amount}")
+            ]
+        ]
+        await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    elif action == 'sell_details':
+        cat_id = user_data['sell_data'].get('cat_id', '1')
+        user_data['pending_action'] = None
+        user_data['sell_data'] = {}
+        
+        order_counter += 1
+        current_order_id = order_counter
+        
+        await update.message.reply_text(
+            f"⏳ **আপনার জিমেইলের বিবরণ সফলভাবে গ্রহণ করা হয়েছে!**\n"
+            f"📋 অর্ডার নম্বর: `#{current_order_id}`\n"
+            f"🔄 স্ট্যাটাস: `যাচাই করা হচ্ছে (Pending)`\n\n"
+            f"অ্যাডমিন যাচাই করে আপনার ব্যালেন্স আপডেট করে দেবেন।"
+        )
+        
+        admin_text = (
+            f"🔔 **নতুন জিমেইল বিক্রির রিকোয়েস্ট!**\n\n"
+            f"📋 **Order Number:** `#{current_order_id}`\n"
+            f"👤 **User ID:** `{user_id}`\n"
+            f"👤 **Username:** @{user.username if user.username else 'N/A'}\n"
+            f"🏷️ **Category ID:** {cat_id}\n\n"
+            f"🔑 **Gmail & Password / Details:**\n`{text}`\n\n"
+            f"📌 **Status:** 🟡 Pending"
+        )
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_sell_{user_id}"),
+                InlineKeyboardButton("❌ Cancel", callback_data=f"admin_cancel_sell_{user_id}")
+            ]
+        ]
+        await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    elif action == 'withdraw_amount':
+        if not text.replace('.', '', 1).isdigit():
+            await update.message.reply_text("❌ দয়া করে সঠিক টাকার পরিমাণ লিখুন।")
+            return
+            
+        amount = float(text)
+        if amount < 110:
+            await update.message.reply_text("আপনার অ্যাকাউন্টে পর্যাপ্ত টাকা নাই")
+            return
+            
+        if user_data['balance'] < amount:
+            await update.message.reply_text("আপনার অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই")
+            return
+            
+        user_data['withdraw_data']['amount'] = amount
+        user_data['pending_action'] = 'withdraw_number'
+        
+        await update.message.reply_text(
+            "📞 **রিসিভার অ্যাকাউন্ট নম্বর দিন:**\n\n"
+            "⚠️ _সতর্কবার্তা: অবশ্যই সঠিক নম্বর ইনপুট করুন। ভুল নম্বরে পেমেন্ট চলে গেলে কর্তৃপক্ষ দায়ী থাকবে না।_"
+        )
+
+    elif action == 'withdraw_number':
+        number = text
+        wd_data = user_data['withdraw_data']
+        method = wd_data.get('method')
+        amount = wd_data.get('amount')
+        
+        user_data['balance'] -= amount
+        user_data['pending_action'] = None
+        user_data['withdraw_data'] = {}
+        
+        await update.message.reply_text("⏳ আপনার উইথড্র রিকোয়েস্টটি পেন্ডিং আছে। অ্যাডমিন পেমেন্ট করার পর সফল (Successful) দেখানো হবে।")
+        
+        admin_text = (
+            f"🔔 **নতুন উইথড্র রিকোয়েস্ট!**\n\n"
+            f"👤 User ID: `{user_id}`\n"
+            f"💳 Method: {method}\n"
+            f"💰 Amount: {amount} BDT\n"
+            f"📱 Receiver Number: `{number}`"
+        )
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Success", callback_data=f"admin_approve_wd_{user_id}_{amount}"),
+                InlineKeyboardButton("❌ Cancel (Refund)", callback_data=f"admin_reject_wd_{user_id}_{amount}")
+            ]
+        ]
+        await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+# Simple web server handler for Render health check
+async def handle_web(request):
+    return web.Response(text="Bot is active and running!")
+
+def main():
+    TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
+    
+    application = ApplicationBuilder().token(TOKEN).build()
+    
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    
+    app = web.Application()
+    app.router.add_get("/", handle_web)
+    
+    port = int(os.environ.get("PORT", 8080))
+    
+    import threading
+    def run_web():
+        web.run_app(app, host="0.0.0.0", port=port, print=None)
+        
+    web_thread = threading.Thread(target=run_web, daemon=True)
+    web_thread.start()
+    
+    print("Starting Bot and Web Server...")
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
