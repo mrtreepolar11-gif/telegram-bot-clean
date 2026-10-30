@@ -20,6 +20,14 @@ SELL_PRICES = {
     "5": 15.0   # Facebook Created Gmail
 }
 
+CATEGORY_NAMES = {
+    "1": "Fresh Gmail",
+    "2": "Old Gmail",
+    "3": "Recovery Added",
+    "4": "2FA Enabled",
+    "5": "Facebook created Gmail"
+}
+
 # In-memory database
 users_db = {}
 order_counter = 1000
@@ -81,31 +89,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if data == "main_menu":
         user_data['pending_action'] = None
+        user_data['sell_data'] = {}
         await start(update, context)
         
     elif data == "menu_buy":
         user_data['pending_action'] = 'buy_gmail'
         text = (
-            "🛒 **জি-মেইল ক্রয় মেনু (GMAIL BUY MENU)** 🛒\n\n"
+            "🛒 **জিমেইল ক্রয় মেনু (Gmail Buy)** 🛒\n\n"
             "🟢 **স্ট্যাটাস:** `স্টক এভেইলেবল (ইনস্ট্যান্ট ডেলিভারি)`\n"
-            "💵 **মূল্য:** `প্রতি পিস জিমেইল মাত্র ৩০ টাকা (30 TK)`\n\n"
-            "📝 **আপনি কতগুলো জিমেইল ক্রয় করবেন নিচে লিখুন (সংখ্যায়):**"
+            "💵 **মূল্য:** `প্রতি পিস জিমেইল মাত্র ৩০ টাকা (30 BDT)`\n\n"
+            "📝 **আপনি কতগুলো জিমেইল ক্রয় করবেন নিচে সংখ্যায় লিখে পাঠান:**"
         )
         keyboard = [[InlineKeyboardButton("🔙 মূল মেনু", callback_data="main_menu")]]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         
     elif data == "menu_sell":
-        user_data['pending_action'] = 'sell_gmail_category'
+        user_data['pending_action'] = 'sell_get_gmail'
+        user_data['sell_data'] = {}
         text = (
             "📤 **জিমেইল বিক্রি মেনু (Gmail Sell)**\n\n"
             "আপনার পছন্দের ক্যাটাগরিটি সিলেক্ট করুন:"
         )
         cats = [
-            ("1", "1. Fresh Gmail (20 TK)"), 
-            ("2", "2. Old Gmail (35 TK)"), 
-            ("3", "3. Recovery Added (25 TK)"), 
-            ("4", "4. 2FA Enabled (30 TK)"),
-            ("5", "5. Facebook created Gmail (15 TK)")
+            ("1", "1. Fresh Gmail (২০ টাকা)"), 
+            ("2", "2. Old Gmail (৩৫ টাকা)"), 
+            ("3", "3. Recovery Added (২৫ টাকা)"), 
+            ("4", "4. 2FA Enabled (৩০ টাকা)"),
+            ("5", "5. Facebook created Gmail (১৫ টাকা)")
         ]
         keyboard = [[InlineKeyboardButton(label, callback_data=f"sell_cat_{cat_id}")] for cat_id, label in cats]
         keyboard.append([InlineKeyboardButton("🔙 মূল মেনু", callback_data="main_menu")])
@@ -114,11 +124,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("sell_cat_"):
         cat_id = data.split("_")[2]
         user_data['sell_data']['cat_id'] = cat_id
-        user_data['pending_action'] = 'sell_details'
+        user_data['pending_action'] = 'sell_get_gmail'
+        
+        cat_name = CATEGORY_NAMES.get(cat_id, "Unknown")
+        price = SELL_PRICES.get(cat_id, 20.0)
+        
         text = (
-            "📤 **জিমেইল বিক্রি বিবরণ (Gmail Details)**\n\n"
-            "দয়া করে আপনার জিমেইল এবং পাসওয়ার্ড দিন (Email:Password).\n"
-            "সাথে রিকভারি মেইল বা অন্যান্য তথ্য থাকলে তাও এক লাইনে লিখে সেন্ড করুন।"
+            f"📤 **ক্যাটাগরি:** `{cat_name}` (রেট: `{price} BDT`)\n\n"
+            "✉️ **প্রথমে আপনার জিমেইল (Gmail) টি লিখে পাঠান:**"
         )
         keyboard = [[InlineKeyboardButton("🔙 ফিরে যান", callback_data="menu_sell")]]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -128,9 +141,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "💰 **ডিপোজিট মেনু (Deposit)**\n\n"
             "নিম্নলিখিত নম্বরে সেন্ড মানি করুন:\n"
-            "📌 **Bkash / Nagad (Personal):** `01715914270`\n\n"
+            "📌 **বিকাশ / নগদ (পার্সোনাল):** `01715914270`\n\n"
             "⚠️ **সর্বনিম্ন ডিপোজিট ৬০ টাকা।**\n\n"
-            "📝 **আপনি কত টাকা ডিপোজিট করেছেন তা অংক লিখে পাঠান (যেমন: 100):**"
+            "📝 **আপনি কত টাকা ডিপোজিট করেছেন তা অঙ্કમાં লিখে পাঠান (যেমন: 100):**"
         )
         keyboard = [[InlineKeyboardButton("🔙 মূল মেনু", callback_data="main_menu")]]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -138,7 +151,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_withdraw":
         user_data['pending_action'] = 'withdraw_method'
         text = (
-            "💸 **উইথড্র কনসোল (Withdrawal Console)**\n\n"
+            "💸 **উইথড্র কনসোল (Withdrawal)**\n\n"
             "আপনার অ্যাকাউন্ট ব্যালেন্স: **" + str(user_data['balance']) + " BDT**\n\n"
             "দয়া করে আপনার পেমেন্ট মেথড সিলেক্ট করুন:"
         )
@@ -155,7 +168,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data['pending_action'] = 'withdraw_amount'
         
         text = (
-            f"💸 **Withdrawal - {method}**\n\n"
+            f"💸 **উইথড্র - {method}**\n\n"
             "📝 **আপনি কত টাকা উইথড্র করতে চান তা লিখুন:**\n"
             "⚠️ _সর্বনিম্ন উইথড্র ১১০ টাকা।_"
         )
@@ -186,9 +199,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_profile":
         text = (
             f"👤 **আপনার প্রোফাইল**\n\n"
-            f"🆔 **User ID:** `{user_id}`\n"
-            f"💰 **Balance:** `{user_data['balance']} BDT`\n"
-            f"👥 **Total Referrals:** `{len(user_data['team'])}`"
+            f"🆔 **ইউজার আইডি:** `{user_id}`\n"
+            f"💰 **ব্যালেন্স:** `{user_data['balance']} BDT`\n"
+            f"👥 **মোট রেফারেল:** `{len(user_data['team'])}`"
         )
         keyboard = [[InlineKeyboardButton("🔙 মূল মেনু", callback_data="main_menu")]]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -199,7 +212,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = get_user(target_user_id)
         target_user['balance'] += amount
         
-        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ✅ Approved") + f"\n\n✅ **Approved by Admin (Deposit: {amount} BDT)**")
+        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ✅ Approved") + f"\n\n✅ **অ্যাডমিন কর্তৃক অনুমোদিত (ডিপোজিট: {amount} BDT)**")
         try:
             await context.bot.send_message(target_user_id, f"✅ আপনার ডিপোজিট সফল হয়েছে! আপনার অ্যাকাউন্টে {amount} BDT যোগ করা হয়েছে।")
         except:
@@ -209,9 +222,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user_id = int(data.split("_")[3])
         amount = float(data.split("_")[4])
         
-        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ❌ Cancelled") + f"\n\n❌ **Cancelled by Admin (Deposit: {amount} BDT)**")
+        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ❌ Cancelled") + f"\n\n❌ **অ্যাডমিন কর্তৃক বাতিল (ডিপোজিট: {amount} BDT)**")
         try:
-            await context.bot.send_message(target_user_id, f"❌ আপনার ডিপোজিট রিকোয়েস্টটি ({amount} BDT) অ্যাডমিন কর্তৃক বাতিল করা হয়েছে।")
+            await context.bot.send_message(target_user_id, f"❌ আপনার ডিপোজিট রিকোয়েস্টটি ({amount} BDT) বাতিল করা হয়েছে।")
         except:
             pass
 
@@ -224,7 +237,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = get_user(target_user_id)
         target_user['balance'] += sell_reward
         
-        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ✅ Approved") + f"\n\n✅ **Gmail Sell Approved (Added {sell_reward} BDT to User)**")
+        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ✅ Approved") + f"\n\n✅ **জিমেইল বিক্রি অনুমোদিত (ব্যালেন্সে {sell_reward} BDT যোগ করা হয়েছে)**")
         try:
             await context.bot.send_message(target_user_id, f"✅ আপনার জিমেইল বিক্রি সফল হয়েছে! অ্যাডমিন যাচাই করে আপনার অ্যাকাউন্টে {sell_reward} BDT যোগ করেছেন।")
         except:
@@ -232,7 +245,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("admin_cancel_sell_"):
         target_user_id = int(data.split("_")[3])
-        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ❌ Cancelled") + f"\n\n❌ **Gmail Sell Cancelled by Admin**")
+        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ❌ Cancelled") + f"\n\n❌ **জিমেইলের অর্ডার বাতিল করা হয়েছে**")
         try:
             await context.bot.send_message(target_user_id, f"❌ আপনার জিমেইল বিক্রির রিকোয়েস্টটি বাতিল করা হয়েছে।")
         except:
@@ -242,7 +255,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user_id = int(data.split("_")[3])
         amount = float(data.split("_")[4])
         
-        await query.message.edit_text(query.message.text + f"\n\n✅ **Successful (Paid by Admin)**")
+        await query.message.edit_text(query.message.text + f"\n\n✅ **সফলভাবে পেমেন্ট করা হয়েছে (অ্যাডমিন)**")
         try:
             await context.bot.send_message(target_user_id, f"✅ আপনার উইথড্র সফল হয়েছে! অ্যাডমিন পেমেন্ট সম্পন্ন করেছেন ({amount} BDT)।")
         except:
@@ -254,7 +267,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = get_user(target_user_id)
         target_user['balance'] += amount  
         
-        await query.message.edit_text(query.message.text + f"\n\n❌ **Cancelled by Admin (Balance Refunded)**")
+        await query.message.edit_text(query.message.text + f"\n\n❌ **বাতিল করা হয়েছে (ব্যালেন্স ফেরত দেওয়া হয়েছে)**")
         try:
             await context.bot.send_message(target_user_id, f"❌ আপনার উইথড্র রিকোয়েস্টটি বাতিল করা হয়েছে এবং {amount} BDT আপনার অ্যাকাউন্টে ফিরিয়ে দেওয়া হয়েছে।")
         except:
@@ -281,7 +294,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_cost = quantity * 30
         
         if user_data['balance'] < total_cost:
-            await update.message.reply_text("আপনার অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই")
+            await update.message.reply_text("❌ আপনার অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই।")
             return
         
         user_data['balance'] -= total_cost
@@ -291,7 +304,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে!\n"
             f"🛒 পরিমাণ: {quantity}টি জিমেইল\n"
             f"💵 মোট খরচ: {total_cost} BDT\n"
-            f"⏳ স্ট্যাটাস: **Pending (অ্যাডমিন শিঘ্রই ডেলিভারি দেবেন)**"
+            f"⏳ স্ট্যাটাস: **Pending (অ্যাডমিন শীঘ্রই ডেলিভারি দেবেন)**"
         )
         
         admin_text = (
@@ -303,152 +316,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await context.bot.send_message(ADMIN_ID, admin_text, parse_mode="Markdown")
 
-    elif action == 'deposit_amount':
-        if not text.replace('.', '', 1).isdigit():
-            await update.message.reply_text("❌ দয়া করে সঠিক টাকার পরিমাণ লিখুন।")
-            return
-        
-        amount = float(text)
-        if amount < 60:
-            await update.message.reply_text("❌ সর্বনিম্ন ডিপোজিট ৬০ টাকা।")
-            return
+    elif action == 'sell_get_gmail':
+        if 'cat_id' not in user_data['sell_data']:
+            user_data['sell_data']['cat_id'] = "1"
             
-        user_data['deposit_data']['amount'] = amount
-        user_data['pending_action'] = 'deposit_trxid'
+        user_data['sell_data']['gmail'] = text
+        user_data['pending_action'] = 'sell_get_password'
         
-        await update.message.reply_text("📝 **এখন আপনার bKash/Nagad ট্রানজেকশন আইডি (TrxID) বা বিবরণ লিখে পাঠান:**")
+        await update.message.reply_text("🔑 **দয়া করে পাসওয়ার্ড (Password) লিখে পাঠান:**")
 
-    elif action == 'deposit_trxid':
-        trx_info = text
-        amount = user_data['deposit_data'].get('amount', 0)
-        user_data['pending_action'] = None
-        user_data['deposit_data'] = {}
+    elif action == 'sell_get_password':
+        user_data['sell_data']['password'] = text
         
-        await update.message.reply_text("✅ আপনার ডিপোজিট রিকোয়েস্ট এবং TrxID অ্যাডমিনের কাছে পাঠানো হয়েছে। অনুগ্রহ করে অনুমোদনের অপেক্ষা করুন।")
-        
-        admin_text = (
-            f"🔔 **নতুন ডিপোজিট রিকোয়েস্ট!**\n\n"
-            f"👤 User ID: `{user_id}`\n"
-            f"💰 Amount: {amount} BDT\n"
-            f"📝 TrxID / Info: `{trx_info}`\n"
-            f"📌 Status: 🟡 Pending"
-        )
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_dep_{user_id}_{amount}"),
-                InlineKeyboardButton("❌ Cancel", callback_data=f"admin_cancel_dep_{user_id}_{amount}")
-            ]
-        ]
-        await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
-    elif action == 'sell_details':
         cat_id = user_data['sell_data'].get('cat_id', '1')
-        user_data['pending_action'] = None
-        user_data['sell_data'] = {}
-        
-        order_counter += 1
-        current_order_id = order_counter
-        
-        await update.message.reply_text(
-            f"⏳ **আপনার জিমেইলের বিবরণ সফলভাবে গ্রহণ করা হয়েছে!**\n"
-            f"📋 অর্ডার নম্বর: `#{current_order_id}`\n"
-            f"🔄 স্ট্যাটাস: `যাচাই করা হচ্ছে (Pending)`\n\n"
-            f"অ্যাডমিন যাচাই করে আপনার ব্যালেন্স আপডেট করে দেবেন।"
-        )
-        
-        admin_text = (
-            f"🔔 **নতুন জিমেইল বিক্রির রিকোয়েস্ট!**\n\n"
-            f"📋 **Order Number:** `#{current_order_id}`\n"
-            f"👤 **User ID:** `{user_id}`\n"
-            f"👤 **Username:** @{user.username if user.username else 'N/A'}\n"
-            f"🏷️ **Category ID:** {cat_id} (Reward: {SELL_PRICES.get(cat_id, 20.0)} BDT)\n\n"
-            f"🔑 **Gmail & Password / Details:**\n`{text}`\n\n"
-            f"📌 **Status:** 🟡 Pending"
-        )
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_sell_{user_id}_{cat_id}"),
-                InlineKeyboardButton("❌ Cancel", callback_data=f"admin_cancel_sell_{user_id}")
-            ]
-        ]
-        await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
-    elif action == 'withdraw_amount':
-        if not text.replace('.', '', 1).isdigit():
-            await update.message.reply_text("❌ দয়া করে সঠিক টাকার পরিমাণ লিখুন।")
-            return
-            
-        amount = float(text)
-        if amount < 110:
-            await update.message.reply_text("আপনার অ্যাকাউন্টে পর্যাপ্ত টাকা নাই")
-            return
-            
-        if user_data['balance'] < amount:
-            await update.message.reply_text("আপনার অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই")
-            return
-            
-        user_data['withdraw_data']['amount'] = amount
-        user_data['pending_action'] = 'withdraw_number'
-        
-        await update.message.reply_text(
-            "📞 **রিসিভার অ্যাকাউন্ট নম্বর দিন:**\n\n"
-            "⚠️ _সতর্কবার্তা: অবশ্যই সঠিক নম্বর ইনপুট করুন। ভুল নম্বরে পেমেন্ট চলে গেলে কর্তৃপক্ষ দায়ী থাকবে না।_"
-        )
-
-    elif action == 'withdraw_number':
-        number = text
-        wd_data = user_data['withdraw_data']
-        method = wd_data.get('method')
-        amount = wd_data.get('amount')
-        
-        user_data['balance'] -= amount
-        user_data['pending_action'] = None
-        user_data['withdraw_data'] = {}
-        
-        await update.message.reply_text("⏳ আপনার উইথড্র রিকোয়েস্টটি পেন্ডিং আছে। অ্যাডমিন পেমেন্ট করার পর সফল (Successful) দেখানো হবে।")
-        
-        admin_text = (
-            f"🔔 **নতুন উইথড্র রিকোয়েস্ট!**\n\n"
-            f"👤 User ID: `{user_id}`\n"
-            f"💳 Method: {method}\n"
-            f"💰 Amount: {amount} BDT\n"
-            f"📱 Receiver Number: `{number}`"
-        )
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Success", callback_data=f"admin_approve_wd_{user_id}_{amount}"),
-                InlineKeyboardButton("❌ Cancel (Refund)", callback_data=f"admin_reject_wd_{user_id}_{amount}")
-            ]
-        ]
-        await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
-# Simple web server handler for Render health check (Keeps bot 24/7 alive)
-async def handle_web(request):
-    return web.Response(text="Bot is active and running 24/7!")
-
-def main():
-    TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
-    
-    application = ApplicationBuilder().token(TOKEN).build()
-    
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    
-    app = web.Application()
-    app.router.add_get("/", handle_web)
-    
-    port = int(os.environ.get("PORT", 8080))
-    
-    import threading
-    def run_web():
-        web.run_app(app, host="0.0.0.0", port=port, print=None)
-        
-    web_thread = threading.Thread(target=run_web, daemon=True)
-    web_thread.start()
-    
-    print("Starting Bot and Web Server 24/7...")
-    application.run_polling()
-
-if __name__ == '__main__':
-    main()
+        gmail = user_data['sell_data'].
