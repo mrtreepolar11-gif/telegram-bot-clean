@@ -11,6 +11,15 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 ADMIN_ID = 7458685213
 ADMIN_SUPPORT = "@nahidbro204"
 
+# Final Category-wise Sell Prices
+SELL_PRICES = {
+    "1": 20.0,  # Fresh Gmail
+    "2": 35.0,  # Old Gmail
+    "3": 25.0,  # Recovery Added
+    "4": 30.0,  # 2FA Enabled
+    "5": 15.0   # Facebook Created Gmail
+}
+
 # In-memory database
 users_db = {}
 order_counter = 1000
@@ -89,13 +98,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data['pending_action'] = 'sell_gmail_category'
         text = (
             "📤 **জিমেইল বিক্রি মেনু (Gmail Sell)**\n\n"
-            "আমাদের ৭টি ক্যাটাগরির যেকোনো একটি সিলেক্ট করুন যা আপনি বিক্রি করতে চান:"
+            "আপনার পছন্দের ক্যাটাগরিটি সিলেক্ট করুন:"
         )
         cats = [
-            "1. Fresh Gmail", "2. Old Gmail", "3. Phone Verified", 
-            "4. Recovery Added", "5. 2FA Enabled", "6. Profile Setup", "7. Custom Bulk"
+            ("1", "1. Fresh Gmail (20 TK)"), 
+            ("2", "2. Old Gmail (35 TK)"), 
+            ("3", "3. Recovery Added (25 TK)"), 
+            ("4", "4. 2FA Enabled (30 TK)"),
+            ("5", "5. Facebook created Gmail (15 TK)")
         ]
-        keyboard = [[InlineKeyboardButton(cat, callback_data=f"sell_cat_{i}")] for i, cat in enumerate(cats, 1)]
+        keyboard = [[InlineKeyboardButton(label, callback_data=f"sell_cat_{cat_id}")] for cat_id, label in cats]
         keyboard.append([InlineKeyboardButton("🔙 মূল মেনু", callback_data="main_menu")])
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         
@@ -105,8 +117,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data['pending_action'] = 'sell_details'
         text = (
             "📤 **জিমেইল বিক্রি বিবরণ (Gmail Details)**\n\n"
-            "দয়া করে আপনার জিমেইলের বিবরণ দিন (Email:Password:Recovery mail).\n"
-            "যদি রিকভারি মেইল না থাকে তবে শুধু Email:Password দিয়ে সেন্ড করুন।"
+            "দয়া করে আপনার জিমেইল এবং পাসওয়ার্ড দিন (Email:Password).\n"
+            "সাথে রিকভারি মেইল বা অন্যান্য তথ্য থাকলে তাও এক লাইনে লিখে সেন্ড করুন।"
         )
         keyboard = [[InlineKeyboardButton("🔙 ফিরে যান", callback_data="menu_sell")]]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -204,10 +216,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     elif data.startswith("admin_approve_sell_"):
-        target_user_id = int(data.split("_")[3])
-        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ✅ Approved") + f"\n\n✅ **Gmail Sell Approved by Admin**")
+        parts = data.split("_")
+        target_user_id = int(parts[3])
+        cat_id = parts[4]
+        sell_reward = SELL_PRICES.get(cat_id, 20.0)
+        
+        target_user = get_user(target_user_id)
+        target_user['balance'] += sell_reward
+        
+        await query.message.edit_text(query.message.text.replace("Status: 🟡 Pending", "Status: ✅ Approved") + f"\n\n✅ **Gmail Sell Approved (Added {sell_reward} BDT to User)**")
         try:
-            await context.bot.send_message(target_user_id, f"✅ আপনার জিমেইল বিক্রি সফল হয়েছে! অ্যাডমিন আপনার জিমেইল যাচাই করে ব্যালেন্স আপডেট করে দিয়েছেন।")
+            await context.bot.send_message(target_user_id, f"✅ আপনার জিমেইল বিক্রি সফল হয়েছে! অ্যাডমিন যাচাই করে আপনার অ্যাকাউন্টে {sell_reward} BDT যোগ করেছেন।")
         except:
             pass
 
@@ -342,13 +361,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📋 **Order Number:** `#{current_order_id}`\n"
             f"👤 **User ID:** `{user_id}`\n"
             f"👤 **Username:** @{user.username if user.username else 'N/A'}\n"
-            f"🏷️ **Category ID:** {cat_id}\n\n"
+            f"🏷️ **Category ID:** {cat_id} (Reward: {SELL_PRICES.get(cat_id, 20.0)} BDT)\n\n"
             f"🔑 **Gmail & Password / Details:**\n`{text}`\n\n"
             f"📌 **Status:** 🟡 Pending"
         )
         keyboard = [
             [
-                InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_sell_{user_id}"),
+                InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_sell_{user_id}_{cat_id}"),
                 InlineKeyboardButton("❌ Cancel", callback_data=f"admin_cancel_sell_{user_id}")
             ]
         ]
@@ -403,9 +422,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await context.bot.send_message(ADMIN_ID, admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-# Simple web server handler for Render health check
+# Simple web server handler for Render health check (Keeps bot 24/7 alive)
 async def handle_web(request):
-    return web.Response(text="Bot is active and running!")
+    return web.Response(text="Bot is active and running 24/7!")
 
 def main():
     TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
@@ -428,7 +447,7 @@ def main():
     web_thread = threading.Thread(target=run_web, daemon=True)
     web_thread.start()
     
-    print("Starting Bot and Web Server...")
+    print("Starting Bot and Web Server 24/7...")
     application.run_polling()
 
 if __name__ == '__main__':
