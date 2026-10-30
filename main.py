@@ -1,6 +1,6 @@
 import logging
 import os
-import threading
+import asyncio
 from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
@@ -543,7 +543,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_web(request):
     return web.Response(text="Bot is active and running 24/7!")
 
-def main():
+async def main():
     TOKEN = "9197059198:AAF-uRkXSJjGiQF54qsBXKBBfK53H9l5s3Q"
     
     application = ApplicationBuilder().token(TOKEN).build()
@@ -552,19 +552,25 @@ def main():
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
+    # Initialize and start bot application properly in async loop
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    
     app = web.Application()
     app.router.add_get("/", handle_web)
     
     port = int(os.environ.get("PORT", 8080))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
     
-    def run_web():
-        web.run_app(app, host="0.0.0.0", port=port, print=None)
-        
-    web_thread = threading.Thread(target=run_web, daemon=True)
-    web_thread.start()
-    
-    print("Starting Telegram Bot Polling 24/7...")
-    application.run_polling()
+    print(f"Web server started on port {port} and bot polling active 24/7...")
+
+    # Keep alive indefinitely
+    stop_signal = asyncio.Event()
+    await stop_signal.wait()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
